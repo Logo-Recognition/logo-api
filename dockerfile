@@ -1,3 +1,4 @@
+ARG API_PORT
 FROM python:3.11.5
 WORKDIR /app
 COPY requirements.txt .
@@ -11,5 +12,4 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-EXPOSE 5000
-
+CMD ["gunicorn", "-b", "0.0.0.0:${API_PORT}", "app:app"]
