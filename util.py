@@ -77,7 +77,7 @@ class Util:
             # Generate presigned URL for object
 
             # url = minio.presigned_get_object(bucket_name, object_name)
-            url = f"http://192.168.2.44:9005/{bucket_name}/{object_name}"
+            url = f"minio/{bucket_name}/{object_name}"
             return url
         
         except InvalidResponseError as err:

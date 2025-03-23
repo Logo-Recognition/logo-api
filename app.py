@@ -15,7 +15,7 @@ from routes.images_routes import images_routes
 from routes.dataset_routes import dataset_routes
 from routes.annotated_images_routes import annotated_images_routes
 from routes.model_routes import model_routes
-from routes.ocr_routes import ocr_routes
+
 
 # ----------------------------
 # Configuration
@@ -60,6 +60,7 @@ with app.app_context():
     app.minio_client = Minio(MINIO_API_HOST, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, secure=False)
 
        # Initialize MinIO buckets
+    
     for bucket_name in INIT_BUCKET_NAME:
         try:
             # Check if the bucket exists
@@ -69,6 +70,24 @@ with app.app_context():
                 print(f"Bucket '{bucket_name}' created successfully.")
             else:
                 print(f"Bucket '{bucket_name}' already exists.")
+
+            # Define public access policy
+            public_policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": "*",
+                        "Action": ["s3:GetObject"],
+                        "Resource": [f"arn:aws:s3:::{bucket_name}/*"]
+                    }
+                ]
+            }
+
+            # Apply the public policy
+            app.minio_client.set_bucket_policy(bucket_name, json.dumps(public_policy))
+            print(f"Bucket '{bucket_name}' is now public.")
+
         except S3Error as e:
             print(f"Error with bucket '{bucket_name}': {e}")
 
@@ -141,7 +160,6 @@ app.register_blueprint(images_routes)
 app.register_blueprint(dataset_routes)
 app.register_blueprint(annotated_images_routes)
 app.register_blueprint(model_routes)
-app.register_blueprint(ocr_routes)
 app.register_blueprint(scrape_routes)
 
 # ----------------------------
