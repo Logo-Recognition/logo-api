@@ -24,41 +24,41 @@ API_KEYS = [
         "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_MAIN"),
         "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_MAIN"),
     },
-    {
-        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT"),
-        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT"),
-        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT"),
-        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT"),
-        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT"),
-    },
-    {
-        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_1"),
-        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_1"),
-        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_1"),
-        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_1"),
-        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_1"),
-    },
-    {
-        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_2"),
-        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_2"),
-        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_2"),
-        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_2"),
-        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_2"),
-    },
-    {
-        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_3"),
-        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_3"),
-        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_3"),
-        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_3"),
-        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_3"),
-    },
-    {
-        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_4"),
-        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_4"),
-        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_4"),
-        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_4"),
-        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_4"),
-    },
+    # {
+    #     "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT"),
+    #     "API_KEY": os.getenv("TWEEPY_API_KEY_ALT"),
+    #     "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT"),
+    #     "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT"),
+    #     "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT"),
+    # },
+    # {
+    #     "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_1"),
+    #     "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_1"),
+    #     "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_1"),
+    #     "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_1"),
+    #     "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_1"),
+    # },
+    # {
+    #     "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_2"),
+    #     "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_2"),
+    #     "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_2"),
+    #     "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_2"),
+    #     "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_2"),
+    # },
+    # {
+    #     "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_3"),
+    #     "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_3"),
+    #     "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_3"),
+    #     "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_3"),
+    #     "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_3"),
+    # },
+    # {
+    #     "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_4"),
+    #     "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_4"),
+    #     "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_4"),
+    #     "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_4"),
+    #     "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_4"),
+    # },
 ]
 
 # Track which API key is currently in use
@@ -202,7 +202,7 @@ def search_tweets_with_images():
     end_time = f"{end_date}T23:59:59Z"
     query = f"{keyword} has:images -is:retweet"
 
-    max_images = 10
+    max_images = 5
     image_count = 0
     images_urls = []
 
@@ -211,6 +211,7 @@ def search_tweets_with_images():
     # Maximum retry attempts across all API keys
     max_retries = len(API_KEYS) * 2
     retry_count = 0
+    found_enough = False
     
     while retry_count < max_retries:
         try:
@@ -239,6 +240,9 @@ def search_tweets_with_images():
             media_dict = {media.media_key: media for media in tweets.includes["media"]}
 
             for tweet in tweets.data:
+                if found_enough:
+                    break
+
                 if "attachments" not in tweet or "media_keys" not in tweet.attachments:
                     continue
 
@@ -298,8 +302,9 @@ def search_tweets_with_images():
                         images_urls.append({"image_url": annotated_image_url, "tweet_url": tweet_url, "class_names": class_names,})
                         print(f'image count : {image_count}')
 
-                    if image_count >= max_images:
-                        break
+                        if image_count >= max_images:
+                            found_enough=True
+                            break
 
             if image_count == 0:
                 return jsonify({"error": "No images found in the retrieved tweets."}), 400
