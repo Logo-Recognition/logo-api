@@ -272,35 +272,34 @@ def search_tweets_with_images():
 
                         if len(results[0].boxes) <= 0:
                             images_urls.append({"image_url": image_file_path, "tweet_url": tweet_url})
-                            continue
+                        else :
+                            class_names = []
+                            annotator = Annotator(image)
+                            for box in results[0].boxes:
+                                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                                cropped_image = image.crop((x1, y1, x2, y2)).convert("RGB")
+                                cropped_array = keras.utils.img_to_array(cropped_image)
+                                input_tensor = tf.image.resize(cropped_array, classification_input_size)
+                                input_tensor = tf.convert_to_tensor(input_tensor, dtype=tf.float32)
+                                input_tensor = tf.expand_dims(input_tensor, axis=0)
+                                class_prediction = classification_model.predict(input_tensor)
+                                predicted_class = np.argmax(class_prediction)
+                                class_name = class_names_list[predicted_class]
+                                class_names.append(class_name)
+                                annotator.box_label(box.xyxy[0], class_name)
 
-                        class_names = []
-                        annotator = Annotator(image)
-                        for box in results[0].boxes:
-                            x1, y1, x2, y2 = map(int, box.xyxy[0])
-                            cropped_image = image.crop((x1, y1, x2, y2)).convert("RGB")
-                            cropped_array = keras.utils.img_to_array(cropped_image)
-                            input_tensor = tf.image.resize(cropped_array, classification_input_size)
-                            input_tensor = tf.convert_to_tensor(input_tensor, dtype=tf.float32)
-                            input_tensor = tf.expand_dims(input_tensor, axis=0)
-                            class_prediction = classification_model.predict(input_tensor)
-                            predicted_class = np.argmax(class_prediction)
-                            class_name = class_names_list[predicted_class]
-                            class_names.append(class_name)
-                            annotator.box_label(box.xyxy[0], class_name)
+                            # Convert NumPy array to PIL Image
+                            annotated_img = Image.fromarray(annotator.result())
 
-                        # Convert NumPy array to PIL Image
-                        annotated_img = Image.fromarray(annotator.result())
+                            # Save annotated image
+                            temp_file_name = f"annotated_{image_name}"
+                            annotated_img_path = os.path.join(TEMP_DIR, temp_file_name)
+                            annotated_img.save(annotated_img_path)
 
-                        # Save annotated image
-                        temp_file_name = f"annotated_{image_name}"
-                        annotated_img_path = os.path.join(TEMP_DIR, temp_file_name)
-                        annotated_img.save(annotated_img_path)
-
-                        # Store annotated image URL
-                        annotated_image_url = f"{base_url}/api/scrape/{TEMP_DIR}/{temp_file_name}"
-                        images_urls.append({"image_url": annotated_image_url, "tweet_url": tweet_url, "class_names": class_names,})
-                        print(f'image count : {image_count}')
+                            # Store annotated image URL
+                            annotated_image_url = f"{base_url}/api/scrape/{TEMP_DIR}/{temp_file_name}"
+                            images_urls.append({"image_url": annotated_image_url, "tweet_url": tweet_url, "class_names": class_names,})
+                            print(f'image count : {image_count}')
 
                         if image_count >= max_images:
                             found_enough=True
