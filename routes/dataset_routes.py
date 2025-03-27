@@ -96,34 +96,49 @@ def download_zip():
             contrast_params = augmentation_params['contrast']
             augmenters.append(iaa.LinearContrast((contrast_params)))
         
+        def convert_pixel_to_yolo(image_shape, x1, y1, x2, y2):
+            """
+            Convert pixel coordinates to YOLO format
+            """
+            img_height, img_width = image_shape[:2]
+            x_center = (x1 + x2) / (2 * img_width)
+            y_center = (y1 + y2) / (2 * img_height)
+            width = (x2 - x1) / img_width
+            height = (y2 - y1) / img_height
+            return x_center, y_center, width, height
+
         def augment_data(image, annotations, augmenter):
-            yolo_annotations = ""
-            if augmenter == None:
-                for annote in annotations:
-                    image_shape = image.shape[:2]
-                    x1, y1, x2, y2, class_id = annote['x1'], annote['y1'], annote['x2'], annote['y2'],annote['cid']
-                    x = (x1 + x2) / (2 * image_shape[1])  
-                    y = (y1 + y2) / (2 * image_shape[0])  
-                    w = (x2 - x1) / image_shape[1]  
-                    h = (y2 - y1) / image_shape[0]  
-                    yolo_annotation = f"{int(class_id)} {x} {y} {w} {h} \n"
-                    yolo_annotations += yolo_annotation
-                return image,yolo_annotations
-                
-            # Convert image and annotations to imgaug formats
-            bbs = [ia.BoundingBox(annote['x1'], annote['y1'], annote['x2'], annote['y2'],annote['cid']) for annote in annotations]
+            """
+            Augment image and bounding boxes
+            """
+            # Convert annotations to imgaug bounding boxes
+            bbs = []
+            for annote in annotations:
+                # Convert YOLO format to pixel coordinates
+                img_height, img_width = image.shape[:2]
+                x1, y1, x2, y2, cid = annote['x1'], annote['y1'], annote['x2'], annote['y2'],annote['cid']
+                bbs.append(ia.BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2, label=cid))
+            
+            # Create BoundingBoxesOnImage object
             bb_on_img = ia.BoundingBoxesOnImage(bbs, shape=image.shape)
 
-            image_aug, annote_aug = augmenter(image=image.copy(),bounding_boxes = bb_on_img.copy())
-    
-            for augmented_image, augmented_annotation in zip(image_aug, annote_aug):
-                image_shape = augmented_image.shape[:2]
-                x1, y1, x2, y2, class_id = augmented_annotation.x1,augmented_annotation.y1,augmented_annotation.x2,augmented_annotation.y2,augmented_annotation.label
-                x = (x1 + x2) / (2 * image_shape[1])  
-                y = (y1 + y2) / (2 * image_shape[0])  
-                w = (x2 - x1) / image_shape[1]  
-                h = (y2 - y1) / image_shape[0]  
-                yolo_annotation = f"{int(class_id)} {x} {y} {w} {h} \n"
+            # Apply augmentation
+            if augmenter is not None:
+                image_aug, bb_aug = augmenter(image=image.copy(), bounding_boxes=bb_on_img.copy())
+            else:
+                image_aug, bb_aug = image, bb_on_img
+
+            # Convert augmented bounding boxes back to YOLO format
+            yolo_annotations = ""
+            for aug_bb in bb_aug.bounding_boxes:
+                # Convert pixel coordinates back to YOLO format
+                x_center, y_center, width, height = convert_pixel_to_yolo(
+                    image_aug.shape, 
+                    aug_bb.x1, aug_bb.y1, aug_bb.x2, aug_bb.y2
+                )
+                
+                # Create YOLO annotation string
+                yolo_annotation = f"{aug_bb.label} {x_center} {y_center} {width} {height}\n"
                 yolo_annotations += yolo_annotation
 
             return image_aug, yolo_annotations
@@ -181,54 +196,52 @@ def download_zip():
         names = augmented_names  
 
         def train_test_valid_split(X, y, file_names, train_size=0.6, test_size=0.2, valid_size=0.2, random_state=42):
-            """
-            Splits the data into train, test, and validation sets.
+            total_samples = len(X)
             
-            Args:
-                X (numpy.ndarray): Input features.
-                y (numpy.ndarray): Target labels.
-                file_names (list): List of file names corresponding to the input data.
-                train_size (float, optional): Proportion of the dataset to include in the train split. Default is 0.6.
-                test_size (float, optional): Proportion of the dataset to include in the test split. Default is 0.2.
-                valid_size (float, optional): Proportion of the dataset to include in the validation split. Default is 0.2.
-                random_state (int, optional): Random state for reproducibility. Default is 42.
-                
-            Returns:
-                tuple: Tuples of train, test, and validation data splits (X_train, X_test, X_valid, y_train, y_test, y_valid, train_names, test_names, valid_names).
-            """
-            
-            # Check if the sum of sizes is greater than 1
-            if train_size + test_size + valid_size > 1.0:
-                raise ValueError("The sum of train_size, test_size, and valid_size must not exceed 1.")
-            
-            if test_size == 0 and valid_size == 0 or len(X) <= 1 :
-                X_train, y_train, train_names = X, y, file_names
-                X_test, y_test, test_names = np.array([]), np.array([]), []
-                X_valid, y_valid, valid_names = np.array([]), np.array([]), []
-                return X_train, X_test, X_valid, y_train, y_test, y_valid, train_names, test_names, valid_names
+            # Compute exact split sizes
+            train_count = int(total_samples * train_size)
+            test_count = int(total_samples * test_size)
+            valid_count = total_samples - train_count - test_count  # Ensure sum equals total_samples
 
-            # Calculate the remaining size
-            remaining_size = 1.0 - train_size - test_size - valid_size
-            
-            # Split the data into train and temp
-            X_train, X_temp, y_train, y_temp, train_names, temp_names = train_test_split(X, y, file_names, train_size=train_size / (1 - remaining_size), random_state=random_state)
+            # Handle cases where some splits are 0
+            if train_count == 0:
+                train_count = 0
+                test_count = int(total_samples * (test_size / (test_size + valid_size))) if (test_size + valid_size) > 0 else 0
+                valid_count = total_samples - test_count
+            elif test_count == 0 and valid_count == 0:
+                test_count = valid_count = 0
+                train_count = total_samples
+            elif test_count == 0:
+                test_count = 0
+                valid_count = total_samples - train_count
+            elif valid_count == 0:
+                valid_count = 0
+                test_count = total_samples - train_count
 
-            # Split the temp data into test and valid
-            if len(X_temp) == 1:
+            # First split: Train vs. (Test + Validation)
+            if train_count > 0:
+                X_train, X_temp, y_train, y_temp, train_names, temp_names = train_test_split(
+                    X, y, file_names, train_size=train_size, random_state=random_state, shuffle=True
+                )
+            else:
+                X_train, y_train, train_names = np.array([]), np.array([]), []
+                X_temp, y_temp, temp_names = X, y, file_names
+
+            # Second split: Test vs. Validation
+            if test_count > 0 and valid_count > 0:
+                X_test, X_valid, y_test, y_valid, test_names, valid_names = train_test_split(
+                    X_temp, y_temp, temp_names, test_size=test_size, random_state=random_state, shuffle=True
+                )
+            elif test_count > 0:
                 X_test, y_test, test_names = X_temp, y_temp, temp_names
                 X_valid, y_valid, valid_names = np.array([]), np.array([]), []
-                print('here')
+            elif valid_count > 0:
+                X_valid, y_valid, valid_names = X_temp, y_temp, temp_names
+                X_test, y_test, test_names = np.array([]), np.array([]), []
             else:
-                # Split the temp data into test and valid
-                if test_size == 0:
-                    X_test, y_test, test_names = np.array([]), np.array([]), []
-                    X_valid, y_valid, valid_names = X_temp, y_temp, temp_names
-                elif valid_size == 0:
-                    X_valid, y_valid, valid_names = np.array([]), np.array([]), []
-                    X_test, y_test, test_names = X_temp, y_temp, temp_names
-                else:
-                    test_size = test_size / (test_size + valid_size)
-                    X_test, X_valid, y_test, y_valid, test_names, valid_names = train_test_split(X_temp, y_temp, temp_names, test_size=test_size, random_state=random_state)
+                X_test, y_test, test_names = np.array([]), np.array([]), []
+                X_valid, y_valid, valid_names = np.array([]), np.array([]), []
+
             return X_train, X_test, X_valid, y_train, y_test, y_valid, train_names, test_names, valid_names
         
         X_train, X_test, X_valid, y_train, y_test, y_valid, names_train, names_test, names_valid = train_test_valid_split(X, y, names, train_size=train_size, test_size=test_size, valid_size=valid_size  )

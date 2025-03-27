@@ -133,7 +133,7 @@ def get_next_available_api():
     
     if wait_time > 0:
         logging.warning(f"All API keys are rate limited. Waiting {wait_time:.2f} seconds for the next available key.")
-        time.sleep(wait_time)
+        # time.sleep(wait_time)
     
     return earliest_index
 
@@ -320,16 +320,24 @@ def search_tweets_with_images():
             
             logging.warning(f"Rate limit exceeded for API key #{api_index + 1}. Switching to next available key.")
             # Don't sleep here, just switch to next API key
+            current_time = time.time()
             retry_count += 1
+            return jsonify({
+                            "error": "All API keys are currently rate limited",
+                            "retry_after": f"{int(max(reset_time - current_time, 0))}",
+                            "message": "Please wait before retrying the request"
+                        }), 503
+
             
-            # If this was our last retry, wait for the shortest cooldown
-            if retry_count >= max_retries:
-                min_cooldown = min(api_key_cooldowns.values())
-                if min_cooldown > time.time():
-                    wait_time = min_cooldown - time.time() + jitter
-                    logging.warning(f"All API keys rate limited. Waiting {wait_time:.2f} seconds for reset.")
-                    time.sleep(wait_time)
-                    retry_count = 0  # Reset retry count after waiting
+            # retry_count += 1
+            # # If this was our last retry, wait for the shortest cooldown
+            # if retry_count >= max_retries:
+            #     min_cooldown = min(api_key_cooldowns.values())
+            #     if min_cooldown > time.time():
+            #         wait_time = min_cooldown - time.time() + jitter
+            #         logging.warning(f"All API keys rate limited. Waiting {wait_time:.2f} seconds for reset.")
+            #         time.sleep(wait_time)
+            #         retry_count = 0  # Reset retry count after waiting
 
         except Exception as e:
             logging.error(f"Error with API key #{api_index + 1}: {str(e)}")
