@@ -45,10 +45,8 @@ def manage_annotated_images():
             for label in label_list :
                 class_name = label['class_name']
                 bbox = label['bbox']
-                #เช้คว่ามี class ใน db มั้ย
                 if class_name not in DB_service.get_classes_name(db_connection):
                     return jsonify({'success': False,'error': f'Not found class name : {class_name}.'}), 402
-                #เช้คว่ามี label ที่ผิด format มั้ย
                 if not Util.is_correct_label_format(bbox):
                     return jsonify({'success': False,'error': f'Label {class_name} format is not correct.'}), 402
                 

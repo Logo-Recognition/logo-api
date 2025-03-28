@@ -51,7 +51,6 @@ def download_zip():
         # Get augmentation parameters from request
         augmentation_params  = request.get_json()["augmentation_param"]
          # Create augmenters based on the received parameters
-        print(augmentation_params)
         augmenters = []
         if 'rotate' in augmentation_params and augmentation_params['rotate'] != 0 :
             rotate_angles = augmentation_params['rotate']
@@ -154,7 +153,6 @@ def download_zip():
             all_annote.append(original_annote)
             augmented_names.append(image_name)
             all_image.append(original_image)
-             # ตั้งชื่อไฟล์ใหม่สำหรับรูปภาพและไฟล์ annotation ที่ผ่านการ augment
             base_name = image_name.rsplit('.', 1)[0]
             for augmenter in augmenters:
                 augment_type = augmenter.__class__.__name__.lower()
@@ -307,5 +305,4 @@ names:
         )
 
     except Exception as e:
-        print(e)
         return jsonify({'error': str(e)}), 500

@@ -299,7 +299,6 @@ def search_tweets_with_images():
                             # Store annotated image URL
                             annotated_image_url = f"{base_url}/api/scrape/{TEMP_DIR}/{temp_file_name}"
                             images_urls.append({"image_url": annotated_image_url, "tweet_url": tweet_url, "class_names": class_names,})
-                            print(f'image count : {image_count}')
 
                         if image_count >= max_images:
                             found_enough=True

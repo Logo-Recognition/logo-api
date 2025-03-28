@@ -9,7 +9,6 @@ def manage_class():
     db_connection = g.db_connection
     minio_client = g.minio_client
     if request.method == 'GET':     
-        # List all buckets and object counts
         try:
             classes = DB_service.get_classes_name(db_connection)
             return jsonify({
