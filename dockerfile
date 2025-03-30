@@ -14,4 +14,4 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${API_PORT} app:app"]
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${API_PORT} --timeout 600 app:app "]
