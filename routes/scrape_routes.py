@@ -215,7 +215,7 @@ def search_tweets_with_images():
     end_time = f"{end_date}T23:59:59Z"
     query = f"{keyword} has:images -is:retweet"
 
-    max_images = 5
+    max_images = 10
     image_count = 0
     images_urls = []
 
