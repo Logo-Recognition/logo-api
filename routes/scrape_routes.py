@@ -24,43 +24,56 @@ API_KEYS = [
         "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_MAIN"),
         "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_MAIN"),
     },
-    # {
-    #     "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT"),
-    #     "API_KEY": os.getenv("TWEEPY_API_KEY_ALT"),
-    #     "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT"),
-    #     "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT"),
-    #     "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT"),
-    # },
-    # {
-    #     "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_1"),
-    #     "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_1"),
-    #     "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_1"),
-    #     "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_1"),
-    #     "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_1"),
-    # },
-    # {
-    #     "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_2"),
-    #     "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_2"),
-    #     "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_2"),
-    #     "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_2"),
-    #     "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_2"),
-    # },
-    # {
-    #     "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_3"),
-    #     "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_3"),
-    #     "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_3"),
-    #     "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_3"),
-    #     "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_3"),
-    # },
-    # {
-    #     "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_4"),
-    #     "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_4"),
-    #     "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_4"),
-    #     "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_4"),
-    #     "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_4"),
-    # },
+    {
+        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT"),
+        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT"),
+        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT"),
+        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT"),
+        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT"),
+    },
+    {
+        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_1"),
+        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_1"),
+        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_1"),
+        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_1"),
+        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_1"),
+    },
+    {
+        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_2"),
+        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_2"),
+        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_2"),
+        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_2"),
+        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_2"),
+    },
+    {
+        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_3"),
+        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_3"),
+        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_3"),
+        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_3"),
+        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_3"),
+    },
+    {
+        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_4"),
+        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_4"),
+        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_4"),
+        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_4"),
+        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_4"),
+    },
+    {
+        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_5"),
+        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_5"),
+        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_5"),
+        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_5"),
+        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_5"),
+    },
+    {
+        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_6"),
+        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_6"),
+        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_6"),
+        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_6"),
+        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_6"),
+    },
 ]
-
 # Track which API key is currently in use
 current_api_key_index = 0
 # Track when each API key was last rate limited
@@ -133,7 +146,7 @@ def get_next_available_api():
     
     if wait_time > 0:
         logging.warning(f"All API keys are rate limited. Waiting {wait_time:.2f} seconds for the next available key.")
-        # time.sleep(wait_time)
+        time.sleep(wait_time)
     
     return earliest_index
 
@@ -242,7 +255,6 @@ def search_tweets_with_images():
             for tweet in tweets.data:
                 if found_enough:
                     break
-
                 if "attachments" not in tweet or "media_keys" not in tweet.attachments:
                     continue
 
@@ -299,6 +311,7 @@ def search_tweets_with_images():
                             # Store annotated image URL
                             annotated_image_url = f"{base_url}/api/scrape/{TEMP_DIR}/{temp_file_name}"
                             images_urls.append({"image_url": annotated_image_url, "tweet_url": tweet_url, "class_names": class_names,})
+                            print(f'image count : {image_count}')
 
                         if image_count >= max_images:
                             found_enough=True
@@ -319,24 +332,16 @@ def search_tweets_with_images():
             
             logging.warning(f"Rate limit exceeded for API key #{api_index + 1}. Switching to next available key.")
             # Don't sleep here, just switch to next API key
-            current_time = time.time()
             retry_count += 1
-            return jsonify({
-                            "error": "All API keys are currently rate limited",
-                            "retry_after": f"{int(max(reset_time - current_time, 0))}",
-                            "message": "Please wait before retrying the request"
-                        }), 503
-
             
-            # retry_count += 1
-            # # If this was our last retry, wait for the shortest cooldown
-            # if retry_count >= max_retries:
-            #     min_cooldown = min(api_key_cooldowns.values())
-            #     if min_cooldown > time.time():
-            #         wait_time = min_cooldown - time.time() + jitter
-            #         logging.warning(f"All API keys rate limited. Waiting {wait_time:.2f} seconds for reset.")
-            #         time.sleep(wait_time)
-            #         retry_count = 0  # Reset retry count after waiting
+            # If this was our last retry, wait for the shortest cooldown
+            if retry_count >= max_retries:
+                min_cooldown = min(api_key_cooldowns.values())
+                if min_cooldown > time.time():
+                    wait_time = min_cooldown - time.time() + jitter
+                    logging.warning(f"All API keys rate limited. Waiting {wait_time:.2f} seconds for reset.")
+                    time.sleep(wait_time)
+                    retry_count = 0  # Reset retry count after waiting
 
         except Exception as e:
             logging.error(f"Error with API key #{api_index + 1}: {str(e)}")
