@@ -16,7 +16,6 @@ from routes.dataset_routes import dataset_routes
 from routes.annotated_images_routes import annotated_images_routes
 from routes.model_routes import model_routes
 import json
-
 # ----------------------------
 # Configuration
 # ----------------------------

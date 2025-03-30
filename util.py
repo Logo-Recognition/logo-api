@@ -13,6 +13,7 @@ from PIL import ImageDraw,ImageFont,Image
 import io
 from keras.preprocessing.image import load_img, img_to_array
 from keras.applications.mobilenet_v3 import preprocess_input
+import gc
 class Util:
 
     def is_correct_label_format(label):
@@ -126,34 +127,40 @@ class Util:
         new_imagename = f"{name}({suffix}){ext}"
         return new_imagename
     
-    def draw_bounding_boxes(image, results, classification_model,size):
-        # Convert image to BGR (OpenCV uses BGR format)
+    def draw_bounding_boxes(image, results, classification_model, size):
+        """Draw bounding boxes and classify detected objects efficiently."""
+
+        # Convert image to BGR format (OpenCV uses BGR)
         image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        
-        # Load class names from a text file
+
+        # Load class names once
         with open('model/47classes_classname.txt', 'r') as file:
             class_names = file.read().splitlines()
 
-        # Iterate over the predictions
+        # Iterate over detections
         for result in results:
             boxes = result.boxes
-            names = result.names
 
             for box in boxes:
-                x1, y1, x2, y2 = box.xyxy.tolist()[0]
-                # Crop the image using the bounding box coordinates
-                cropped_image = image_bgr[int(y1):int(y2), int(x1):int(x2)]
-                preprocess_img = Util.preprocess_img(cropped_image,size)
-                prediction = classification_model.predict(preprocess_img)
-                class_num = np.argmax(prediction)
+                x1, y1, x2, y2 = map(int, box.xyxy.tolist()[0])  # Convert coordinates to int
+
+                # Crop and preprocess the image in-place
+                preprocess_img = Util.preprocess_img(image_bgr[y1:y2, x1:x2], size)
+                class_num = np.argmax(classification_model.predict(preprocess_img))
                 class_name = class_names[class_num]
 
-                # Draw the bounding box
-                cv2.rectangle(image_bgr, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-                # Put class name on the image
-                cv2.putText(image_bgr, class_name, (int(x1), int(y1 - 10)), cv2.FONT_HERSHEY_COMPLEX, 1.0 , (0, 255, 0), 1)
+                # Draw bounding box and label
+                cv2.rectangle(image_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(image_bgr, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_COMPLEX, 1.0, (0, 255, 0), 1)
+
+        # Convert image to bytes (JPEG format)
         _, buffer = cv2.imencode('.jpg', image_bgr)
         image_data = buffer.tobytes()
+
+        # Explicitly release memory
+        del image_bgr, buffer
+        gc.collect()
+
         return image_data
     
     def draw_boxes(image, bounds, color='green', width=3):
@@ -172,7 +179,6 @@ class Util:
         return processed_image_data
     
     def preprocess_img(image,size):
-
         img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         resized_img = cv2.resize(img_rgb, (size, size))
         precessed_img = np.expand_dims(resized_img, axis=0)

@@ -9,6 +9,7 @@ import numpy as np
 import requests
 import tensorflow as tf
 import tweepy
+import gc
 from datetime import datetime, timedelta
 from PIL import ImageDraw, Image
 from ultralytics import YOLO, RTDETR
@@ -73,6 +74,13 @@ API_KEYS = [
         "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_6"),
         "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_6"),
     },
+    {
+        "BEARER_TOKEN": os.getenv("TWEEPY_BEARER_TOKEN_ALT_7"),
+        "API_KEY": os.getenv("TWEEPY_API_KEY_ALT_7"),
+        "API_SECRET": os.getenv("TWEEPY_API_SECRET_ALT_7"),
+        "ACCESS_TOKEN": os.getenv("TWEEPY_ACCESS_TOKEN_ALT_7"),
+        "ACCESS_TOKEN_SECRET": os.getenv("TWEEPY_ACCESS_TOKEN_SECRET_ALT_7"),
+    },
 ]
 # Track which API key is currently in use
 current_api_key_index = 0
@@ -86,6 +94,66 @@ AVAILABLE_CLASSIFICATION_MODEL = ['efficientnet', 'convnext', 'mobilenet', 'cust
 # Initialize Tweepy clients and API handlers
 clients = []
 apis = []
+
+# Global model caching
+_detection_model = None
+_classification_model = None
+_classification_input_size = None
+_class_names_list = None
+
+def load_models_if_needed(detection_model_name, classification_model_name):
+    """Load models only if they haven't been loaded already or if they've changed"""
+    global _detection_model, _classification_model, _classification_input_size, _class_names_list
+    
+    # Load detection model if needed
+    if _detection_model is None or not hasattr(_detection_model, '_name') or _detection_model._name != detection_model_name:
+        # Clear previous model from memory if it exists
+        if _detection_model is not None:
+            del _detection_model
+            gc.collect()  
+            
+        if detection_model_name == 'yolov8':
+            _detection_model = YOLO('model/YOLOv8_47_1_class.pt')
+            _detection_model._name = 'yolov8'  # Add name attribute for checking
+        elif detection_model_name == 'yolov10':
+            _detection_model = YOLO('model/YOLOv10_47_1_class.pt')
+            _detection_model._name = 'yolov10'
+        elif detection_model_name == 'rtdetr':
+            _detection_model = RTDETR('model/RTDETR_47_1_class.pt')
+            _detection_model._name = 'rtdetr'
+    
+    # Load classification model if needed
+    if _classification_model is None or not hasattr(_classification_model, '_name') or _classification_model._name != classification_model_name:
+        # Clear previous model from memory if it exists
+        if _classification_model is not None:
+            del _classification_model
+            keras.backend.clear_session()  # Clear Keras session
+            gc.collect()  # Force garbage collection
+            
+        if classification_model_name == 'efficientnet':
+            _classification_model = keras.models.load_model('model/EfficientNetV2_47.keras')
+            _classification_model._name = 'efficientnet'  # Add name attribute
+            _classification_input_size = (224, 224)
+        elif classification_model_name == 'convnext':
+            _classification_model = keras.models.load_model('model/Conv_47.keras')
+            _classification_model._name = 'convnext'
+            _classification_input_size = (224, 224)
+        elif classification_model_name == 'mobilenet':
+            _classification_model = keras.models.load_model('model/MobileNetV3_47.keras')
+            _classification_model._name = 'mobilenet'
+            _classification_input_size = (224, 224)
+        elif classification_model_name == 'custom':
+            _classification_model = keras.models.load_model('model/Custom_47.keras')
+            _classification_model._name = 'custom'
+            _classification_input_size = (128, 128)
+    
+    # Load class names if not already loaded
+    if _class_names_list is None:
+        class_names_file = 'model/47classes_classname.txt'
+        with open(class_names_file, 'r') as file:
+            _class_names_list = [line.strip() for line in file.readlines()]
+    
+    return _detection_model, _classification_model, _classification_input_size, _class_names_list
 
 def initialize_tweepy_clients():
     """Initialize all Tweepy clients and APIs from the available API keys"""
@@ -142,12 +210,7 @@ def get_next_available_api():
     
     # If all API keys are on cooldown, return the one with the earliest cooldown expiry
     earliest_index = min(api_key_cooldowns, key=api_key_cooldowns.get)
-    wait_time = max(api_key_cooldowns[earliest_index] - current_time, 0)
-    
-    if wait_time > 0:
-        logging.warning(f"All API keys are rate limited. Waiting {wait_time:.2f} seconds for the next available key.")
-        time.sleep(wait_time)
-    
+
     return earliest_index
 
 scrape_routes = Blueprint('scrape_routes', __name__)
@@ -176,46 +239,24 @@ def search_tweets_with_images():
     if classification_model_name not in AVAILABLE_CLASSIFICATION_MODEL:
         return jsonify({"error": f"Invalid classification model. Available models are: {', '.join(AVAILABLE_CLASSIFICATION_MODEL)}"}), 400
     
-    if detection_model_name == 'yolov8':
-        detection_model = YOLO('model/YOLOv8_47_1_class.pt')
-    elif detection_model_name == 'yolov10':
-        detection_model = YOLO('model/YOLOv10_47_1_class.pt')
-    elif detection_model_name == 'rtdetr':
-        detection_model = RTDETR('model/RTDETR_47_1_class.pt')
-    else:
-        return jsonify({"error": f"Invalid detection model. Available models are: {', '.join(AVAILABLE_DETECTION_MODEL)}"}), 400
-
-    if classification_model_name == 'efficientnet':
-        classification_model = keras.models.load_model('model/EfficientNetV2_47.keras')
-        classification_input_size = (224, 224)
-    elif classification_model_name == 'convnext':
-        classification_model = keras.models.load_model('model/Conv_47.keras')
-        classification_input_size = (224, 224)
-    elif classification_model_name == 'mobilenet':
-        classification_model = keras.models.load_model('model/MobileNetV3_47.keras')
-        classification_input_size = (224, 224)
-    elif classification_model_name == 'custom':
-        classification_model = keras.models.load_model('model/Custom_47.keras')
-        classification_input_size = (128, 128)
-    else:
-        return jsonify({"error": f"Invalid classification model. Available models are: {', '.join(AVAILABLE_CLASSIFICATION_MODEL)}"}), 400
+    try:
+        # Load models only if needed (using the new function)
+        detection_model, classification_model, classification_input_size, class_names_list = load_models_if_needed(
+            detection_model_name, classification_model_name
+        )
+    except Exception as e:
+        logging.error(f"Error loading models: {e}")
+        return jsonify({"error": f"Failed to load models: {str(e)}"}), 500
 
     if not os.path.exists(TEMP_DIR):
         os.makedirs(TEMP_DIR)
     
-    # Load class names from text file
-    class_names_file = 'model/47classes_classname.txt'
-    if not os.path.exists(class_names_file):
-        return jsonify({"error": "Class names file not found."}), 400
-
-    with open(class_names_file, 'r') as file:
-        class_names_list = [line.strip() for line in file.readlines()]
 
     start_time = f"{start_date}T00:00:00Z"
     end_time = f"{end_date}T23:59:59Z"
     query = f"{keyword} has:images -is:retweet"
 
-    max_images = 10
+    max_images = 6
     image_count = 0
     images_urls = []
 
@@ -313,35 +354,41 @@ def search_tweets_with_images():
                             images_urls.append({"image_url": annotated_image_url, "tweet_url": tweet_url, "class_names": class_names,})
                             print(f'image count : {image_count}')
 
+                        del image
+                        if 'annotated_img' in locals():
+                            del annotated_img
+                        del results
+
                         if image_count >= max_images:
                             found_enough=True
                             break
 
+            keras.backend.clear_session()
+            gc.collect()
             if image_count == 0:
                 return jsonify({"error": "No images found in the retrieved tweets."}), 400
 
             return jsonify({"predicted_url": images_urls}), 200
 
         except tweepy.TooManyRequests as e:
-            # Set cooldown for the current API key
+            # Set cooldown for the current API key - properly parse the Unix timestamp
             reset_time = int(e.response.headers.get("x-rate-limit-reset", 0))
+            # Store the actual timestamp, not a duration
             api_key_cooldowns[api_index] = reset_time
             
-            # Add a small random delay to avoid thundering herd problem if all keys reset at same time
-            jitter = random.uniform(1, 5)
-            
             logging.warning(f"Rate limit exceeded for API key #{api_index + 1}. Switching to next available key.")
-            # Don't sleep here, just switch to next API key
             retry_count += 1
             
-            # If this was our last retry, wait for the shortest cooldown
-            if retry_count >= max_retries:
+            # Check if all APIs are rate limited
+            all_limited = all(cooldown > time.time() for cooldown in api_key_cooldowns.values())
+            
+            if all_limited:
                 min_cooldown = min(api_key_cooldowns.values())
-                if min_cooldown > time.time():
-                    wait_time = min_cooldown - time.time() + jitter
-                    logging.warning(f"All API keys rate limited. Waiting {wait_time:.2f} seconds for reset.")
-                    time.sleep(wait_time)
-                    retry_count = 0  # Reset retry count after waiting
+                wait_time = min_cooldown - time.time()
+                # Don't sleep! Return an error to the client
+                return jsonify({
+                    "error": f"All Twitter API keys are rate limited. Please try again in {int(wait_time)} seconds."
+                }), 429  # 429 is the HTTP status code for "Too Many Requests"
 
         except Exception as e:
             logging.error(f"Error with API key #{api_index + 1}: {str(e)}")
