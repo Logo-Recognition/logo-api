@@ -194,52 +194,82 @@ def download_zip():
         names = augmented_names  
 
         def train_test_valid_split(X, y, file_names, train_size=0.6, test_size=0.2, valid_size=0.2, random_state=42):
+            """
+            Split data into training, testing, and validation sets.
+            
+            Parameters:
+            -----------
+            X : array-like
+                Features to split
+            y : array-like
+                Target values to split
+            file_names : array-like
+                File names corresponding to each sample
+            train_size : float, default=0.6
+                Proportion of data for training set
+            test_size : float, default=0.2
+                Proportion of data for test set
+            valid_size : float, default=0.2
+                Proportion of data for validation set
+            random_state : int, default=42
+                Random seed for reproducibility
+                
+            Returns:
+            --------
+            X_train, X_test, X_valid : array-like
+                Split feature sets
+            y_train, y_test, y_valid : array-like
+                Split target sets
+            train_names, test_names, valid_names : array-like
+                Split file names
+            """
+            from sklearn.model_selection import train_test_split
+            import numpy as np
+            
+            # Check that proportions sum to 1
+            if abs(train_size + test_size + valid_size - 1.0) > 1e-10:
+                raise ValueError("train_size, test_size, and valid_size must sum to 1.0")
+            
             total_samples = len(X)
             
-            # Compute exact split sizes
-            train_count = int(total_samples * train_size)
-            test_count = int(total_samples * test_size)
-            valid_count = total_samples - train_count - test_count  # Ensure sum equals total_samples
-
-            # Handle cases where some splits are 0
-            if train_count == 0:
-                train_count = 0
-                test_count = int(total_samples * (test_size / (test_size + valid_size))) if (test_size + valid_size) > 0 else 0
-                valid_count = total_samples - test_count
-            elif test_count == 0 and valid_count == 0:
-                test_count = valid_count = 0
-                train_count = total_samples
-            elif test_count == 0:
-                test_count = 0
-                valid_count = total_samples - train_count
-            elif valid_count == 0:
-                valid_count = 0
-                test_count = total_samples - train_count
-
-            # First split: Train vs. (Test + Validation)
-            if train_count > 0:
-                X_train, X_temp, y_train, y_temp, train_names, temp_names = train_test_split(
-                    X, y, file_names, train_size=train_size, random_state=random_state, shuffle=True
-                )
-            else:
-                X_train, y_train, train_names = np.array([]), np.array([]), []
-                X_temp, y_temp, temp_names = X, y, file_names
-
-            # Second split: Test vs. Validation
-            if test_count > 0 and valid_count > 0:
-                X_test, X_valid, y_test, y_valid, test_names, valid_names = train_test_split(
-                    X_temp, y_temp, temp_names, test_size=test_size, random_state=random_state, shuffle=True
-                )
-            elif test_count > 0:
-                X_test, y_test, test_names = X_temp, y_temp, temp_names
-                X_valid, y_valid, valid_names = np.array([]), np.array([]), []
-            elif valid_count > 0:
-                X_valid, y_valid, valid_names = X_temp, y_temp, temp_names
-                X_test, y_test, test_names = np.array([]), np.array([]), []
-            else:
-                X_test, y_test, test_names = np.array([]), np.array([]), []
-                X_valid, y_valid, valid_names = np.array([]), np.array([]), []
-
+            if total_samples == 0:
+                return (np.array([]), np.array([]), np.array([]), 
+                        np.array([]), np.array([]), np.array([]),
+                        [], [], [])
+            
+            # Case where both test and validation are 0
+            if test_size == 0 and valid_size == 0:
+                # All data goes to training
+                return (X, np.array([]), np.array([]),
+                        y, np.array([]), np.array([]),
+                        file_names, [], [])
+            
+            # First split: separate training set
+            X_train, X_temp, y_train, y_temp, train_names, temp_names = train_test_split(
+                X, y, file_names, test_size=(test_size + valid_size), 
+                train_size=train_size, random_state=random_state, shuffle=True
+            )
+            
+            # If either test or validation is zero-sized
+            if test_size == 0:
+                return (X_train, np.array([]), X_temp, 
+                        y_train, np.array([]), y_temp,
+                        train_names, [], temp_names)
+            
+            if valid_size == 0:
+                return (X_train, X_temp, np.array([]), 
+                        y_train, y_temp, np.array([]),
+                        train_names, temp_names, [])
+            
+            # Second split: divide the remaining data into test and validation
+            # Calculate relative sizes for the second split
+            relative_test_size = test_size / (test_size + valid_size)
+            
+            X_test, X_valid, y_test, y_valid, test_names, valid_names = train_test_split(
+                X_temp, y_temp, temp_names, test_size=(1 - relative_test_size),
+                train_size=relative_test_size, random_state=random_state, shuffle=True
+            )
+            
             return X_train, X_test, X_valid, y_train, y_test, y_valid, train_names, test_names, valid_names
         
         X_train, X_test, X_valid, y_train, y_test, y_valid, names_train, names_test, names_valid = train_test_valid_split(X, y, names, train_size=train_size, test_size=test_size, valid_size=valid_size  )
